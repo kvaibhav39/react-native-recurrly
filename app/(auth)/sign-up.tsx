@@ -8,6 +8,7 @@ import { useSignUp } from "@clerk/expo";
 import clsx from "clsx";
 import { Link, useRouter } from "expo-router";
 import { useMemo, useState } from "react";
+import { usePostHog } from "posthog-react-native";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -25,6 +26,7 @@ function isValidEmail(value: string) {
 export default function SignUp() {
   const router = useRouter();
   const { signUp, errors, fetchStatus } = useSignUp();
+  const posthog = usePostHog();
 
   const [step, setStep] = useState<"form" | "verify">("form");
 
@@ -80,11 +82,12 @@ export default function SignUp() {
       }
 
       setClientIssue(null);
+      posthog.capture("sign_up_started", { email: email.trim() });
       setStep("verify");
     } catch (err: any) {
-      setFormError(
-        err?.errors?.[0]?.longMessage ?? err?.message ?? "Sign up failed.",
-      );
+      const message = err?.errors?.[0]?.longMessage ?? err?.message ?? "Sign up failed.";
+      setFormError(message);
+      posthog.capture("sign_up_failed", { step: "form", error: message });
     }
   };
 
@@ -95,6 +98,11 @@ export default function SignUp() {
       await signUp.verifications.verifyEmailCode({ code: code.trim() });
 
       if (signUp.status === "complete") {
+        posthog.identify(email.trim(), {
+          $set: { email: email.trim() },
+          $set_once: { sign_up_date: new Date().toISOString() },
+        });
+        posthog.capture("sign_up_completed", { email: email.trim() });
         await signUp.finalize({
           navigate: async () => router.replace("/(tabs)"),
         });
@@ -102,9 +110,9 @@ export default function SignUp() {
         setFormError("Verification is not complete yet.");
       }
     } catch (err: any) {
-      setFormError(
-        err?.errors?.[0]?.longMessage ?? err?.message ?? "Invalid code.",
-      );
+      const message = err?.errors?.[0]?.longMessage ?? err?.message ?? "Invalid code.";
+      setFormError(message);
+      posthog.capture("sign_up_failed", { step: "verify", error: message });
     }
   };
 

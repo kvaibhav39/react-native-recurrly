@@ -8,6 +8,7 @@ import { useSignIn } from "@clerk/expo";
 import clsx from "clsx";
 import { Link, useRouter } from "expo-router";
 import { useMemo, useState } from "react";
+import { usePostHog } from "posthog-react-native";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -27,6 +28,7 @@ function isValidEmail(value: string) {
 export default function SignIn() {
   const router = useRouter();
   const { signIn, errors, fetchStatus } = useSignIn();
+  const posthog = usePostHog();
 
   const [mode, setMode] = useState<Mode>("password");
   const [step, setStep] = useState<"form" | "code">("form");
@@ -90,6 +92,8 @@ export default function SignIn() {
       }
 
       if (signIn.status === "complete") {
+        posthog.identify(email.trim(), { $set: { email: email.trim() } });
+        posthog.capture("sign_in_completed", { method: "password" });
         await signIn.finalize({
           navigate: async () => router.replace("/(tabs)"),
         });
@@ -112,9 +116,9 @@ export default function SignIn() {
         setFormError("Additional verification is required for this account.");
       }
     } catch (err: any) {
-      setFormError(
-        err?.errors?.[0]?.longMessage ?? err?.message ?? "Sign in failed.",
-      );
+      const message = err?.errors?.[0]?.longMessage ?? err?.message ?? "Sign in failed.";
+      setFormError(message);
+      posthog.capture("sign_in_failed", { method: "password", error: message });
     }
   };
 
@@ -125,6 +129,8 @@ export default function SignIn() {
       await signIn.emailCode.verifyCode({ code: code.trim() });
 
       if (signIn.status === "complete") {
+        posthog.identify(email.trim(), { $set: { email: email.trim() } });
+        posthog.capture("sign_in_completed", { method: "email_code" });
         await signIn.finalize({
           navigate: async () => router.replace("/(tabs)"),
         });
@@ -132,9 +138,9 @@ export default function SignIn() {
         setFormError("Code verification is not complete yet.");
       }
     } catch (err: any) {
-      setFormError(
-        err?.errors?.[0]?.longMessage ?? err?.message ?? "Invalid code.",
-      );
+      const message = err?.errors?.[0]?.longMessage ?? err?.message ?? "Invalid code.";
+      setFormError(message);
+      posthog.capture("sign_in_failed", { method: "email_code", error: message });
     }
   };
 
@@ -178,6 +184,7 @@ export default function SignIn() {
   };
 
   const onSwitchMode = (next: Mode) => {
+    posthog.capture("sign_in_mode_switched", { from: mode, to: next });
     setMode(next);
     setFormError(null);
     setClientIssue(null);

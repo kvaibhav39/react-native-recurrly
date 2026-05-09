@@ -2,8 +2,10 @@ import "@/global.css";
 import { ClerkProvider, useAuth } from "@clerk/expo";
 import { tokenCache } from "@clerk/expo/token-cache";
 import { useFonts } from "expo-font";
-import { SplashScreen, Stack } from "expo-router";
-import { useEffect } from "react";
+import { SplashScreen, Stack, useGlobalSearchParams, usePathname } from "expo-router";
+import { useEffect, useRef } from "react";
+import { PostHogProvider } from "posthog-react-native";
+import { posthog } from "@/src/config/posthog";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -17,18 +19,30 @@ function RootLayoutContent() {
     "sans-light": require("@/assets/fonts/PlusJakartaSans-Light.ttf"),
   });
   const { isLoaded } = useAuth();
+  const pathname = usePathname();
+  const params = useGlobalSearchParams();
+  const previousPathname = useRef<string | undefined>(undefined);
 
   const fontsReady = fontsLoaded || Boolean(fontError);
+  const appReady = fontsReady && isLoaded;
 
   useEffect(() => {
-    if (fontsReady && isLoaded) {
+    if (appReady) {
       void SplashScreen.hideAsync();
     }
-  }, [fontsReady, isLoaded]);
+  }, [appReady]);
 
-  if (!fontsReady || !isLoaded) {
-    return null;
-  }
+  // Manual screen tracking for Expo Router
+  useEffect(() => {
+    if (!appReady) return;
+    if (previousPathname.current !== pathname) {
+      posthog.screen(pathname, {
+        previous_screen: previousPathname.current ?? null,
+        ...params,
+      });
+      previousPathname.current = pathname;
+    }
+  }, [appReady, pathname, params]);
 
   return <Stack screenOptions={{ headerShown: false }} />;
 }
@@ -41,7 +55,16 @@ export default function RootLayout() {
 
   return (
     <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
-      <RootLayoutContent />
+      <PostHogProvider
+        client={posthog}
+        autocapture={{
+          captureScreens: false,
+          captureTouches: true,
+          propsToCapture: ["testID"],
+        }}
+      >
+        <RootLayoutContent />
+      </PostHogProvider>
     </ClerkProvider>
   );
 }

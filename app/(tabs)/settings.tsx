@@ -4,6 +4,7 @@ import { useClerk, useUser } from "@clerk/expo";
 import dayjs from "dayjs";
 import { styled } from "nativewind";
 import { useMemo, useState } from "react";
+import { usePostHog } from "posthog-react-native";
 import {
   ActivityIndicator,
   Image,
@@ -39,6 +40,7 @@ function ProfileRow({
 const Settings = () => {
   const { signOut } = useClerk();
   const { user, isLoaded } = useUser();
+  const posthog = usePostHog();
   const [signingOut, setSigningOut] = useState(false);
 
   const displayName = useMemo(
@@ -59,6 +61,8 @@ const Settings = () => {
     if (signingOut) return;
     setSigningOut(true);
     try {
+      posthog.capture("sign_out");
+      posthog.reset();
       await signOut();
     } catch {
       // Show a toast/banner here so failures aren't silent.
