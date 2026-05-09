@@ -3,7 +3,7 @@ import { clerkDisplayName } from "@/lib/clerkProfile";
 import { useClerk, useUser } from "@clerk/expo";
 import dayjs from "dayjs";
 import { styled } from "nativewind";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Image,
@@ -39,6 +39,7 @@ function ProfileRow({
 const Settings = () => {
   const { signOut } = useClerk();
   const { user, isLoaded } = useUser();
+  const [signingOut, setSigningOut] = useState(false);
 
   const displayName = useMemo(
     () => (user ? clerkDisplayName(user) : ""),
@@ -53,6 +54,18 @@ const Settings = () => {
     const ms = typeof t === "number" ? t : new Date(t).getTime();
     return dayjs(ms).format("MMM D, YYYY");
   }, [user?.createdAt]);
+
+  const handleSignOut = async () => {
+    if (signingOut) return;
+    setSigningOut(true);
+    try {
+      await signOut();
+    } catch {
+      // Show a toast/banner here so failures aren't silent.
+    } finally {
+      setSigningOut(false);
+    }
+  };
 
   if (!isLoaded) {
     return (
@@ -77,9 +90,7 @@ const Settings = () => {
         <View className="mb-6 rounded-3xl border border-border bg-card p-5">
           <View className="mb-5 flex-row items-center gap-4">
             <Image
-              source={
-                user?.imageUrl ? { uri: user.imageUrl } : images.avatar
-              }
+              source={user?.imageUrl ? { uri: user.imageUrl } : images.avatar}
               className="size-20 rounded-full"
             />
             <View className="min-w-0 flex-1">
@@ -109,9 +120,16 @@ const Settings = () => {
 
         <TouchableOpacity
           className="auth-button bg-primary"
-          onPress={() => signOut()}
+          disabled={signingOut}
+          onPress={() => {
+            void handleSignOut();
+          }}
         >
-          <Text className="auth-button-text text-background">Sign out</Text>
+          {signingOut ? (
+            <ActivityIndicator color="#fff9e3" />
+          ) : (
+            <Text className="auth-button-text text-background">Sign out</Text>
+          )}
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
