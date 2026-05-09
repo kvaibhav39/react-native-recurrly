@@ -3,8 +3,8 @@ import { clerkDisplayName } from "@/lib/clerkProfile";
 import { useClerk, useUser } from "@clerk/expo";
 import dayjs from "dayjs";
 import { styled } from "nativewind";
-import { useMemo, useState } from "react";
 import { usePostHog } from "posthog-react-native";
+import { useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Image,
@@ -62,8 +62,8 @@ const Settings = () => {
     setSigningOut(true);
     try {
       posthog.capture("sign_out");
-      posthog.reset();
       await signOut();
+      posthog.reset();
     } catch {
       // Show a toast/banner here so failures aren't silent.
     } finally {
