@@ -15,6 +15,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { posthog } from "../config/posthog";
 
 const CATEGORY_OPTIONS = [
   "Entertainment",
@@ -100,6 +101,14 @@ export default function CreateSubscriptionModal({
     };
 
     addSubscription(subscription);
+    posthog.capture("subscription_created", {
+      subscription_id: subscription.id,
+      subscription_name: subscription.name,
+      billing: subscription.billing,
+      ...(subscription.category !== undefined
+        ? { category: subscription.category }
+        : {}),
+    });
     reset();
     onClose();
   };
