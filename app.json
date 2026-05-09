@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "reac-native-recurrly",
+    "name": "react-native-recurrly",
     "slug": "react-native-recurrly",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -51,7 +51,9 @@
             "./assets/fonts/PlusJakartaSans-Light.ttf"
           ]
         }
-      ]
+      ],
+      "@clerk/expo",
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true,
