@@ -93,6 +93,21 @@ export default function SignIn() {
         await signIn.finalize({
           navigate: async () => router.replace("/(tabs)"),
         });
+      } else if (signIn.status === "needs_client_trust") {
+        const emailCodeFactor = signIn.supportedSecondFactors?.find(
+          (factor) => factor.strategy === "email_code",
+        );
+
+        if (!emailCodeFactor) {
+          setFormError("Additional verification is required for this account.");
+          return;
+        }
+
+        await signIn.mfa.sendEmailCode();
+        // Move into a dedicated verification branch that calls
+        // signIn.mfa.verifyEmailCode(...) instead of signIn.emailCode.verifyCode(...).
+        setStep("code");
+        return;
       } else {
         setFormError("Additional verification is required for this account.");
       }
